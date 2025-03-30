@@ -37,9 +37,12 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Cloning the Repository with Submodules
 
-This repository contains a submodule that points to a Hugging Face model repository. The submodule is located in the local_models directory, specifically in `local_models/all-MiniLM-L6-v2`.
+This repository contains submodules that point to Hugging Face model repositories. The submodules are located in the local_models directory, specifically:
 
-By default, when you clone a repository with submodules, Git does not automatically download the contents of the submodules. You have two options to get all the corresponding files in `local_models/all-MiniLM-L6-v2`:
+-   `local_models/all-MiniLM-L6-v2`
+-   `local_models/Phi-3-mini-4k-instruct`
+
+By default, when you clone a repository with submodules, Git does not automatically download the contents of the submodules. You have two options to get all the corresponding files in the local_models directory:
 
 ### Option 1: Clone with the --recurse-submodules flag
 
@@ -53,6 +56,6 @@ git clone --recurse-submodules https://your-repository-url.git
 git submodule update --init --recursive
 ```
 
-This second command will initialize your local configuration file, fetch all the data from the submodule repository, and check out the appropriate commit in your local submodule directory.
+This second command will initialize your local configuration file, fetch all the data from the submodule repositories, and check out the appropriate commits in your local submodule directories.
 
-The files from the Hugging Face model repository will then be available in your `local_models/all-MiniLM-L6-v2 directory`.
+The files from the Hugging Face model repositories will then be available in your `local_models/all-MiniLM-L6-v2` and `local_models/Phi-3-mini-4k-instruct` directories.

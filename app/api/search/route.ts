@@ -1,102 +1,73 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pipeline } from "@huggingface/transformers";
-import DatabaseSync from "better-sqlite3";
-import * as sqliteVec from "sqlite-vec";
-import path from "path";
-import fs from "fs";
-
-interface Article {
-    id?: number;
-    articlePath: string;
-    embeddings: number[];
-    content: string;
-    distance?: number;
-}
-
-const dbFilePath = path.join(process.cwd(), "blog_articles.sqlite3");
-
-async function searchDatabase(query: string): Promise<Article[]> {
-    try {
-        const embeddingsGenerator = await pipeline("feature-extraction", "./local_models/all-MiniLM-L6-v2/");
-        const embeddingsOutput = await embeddingsGenerator(query, { pooling: "mean", normalize: true });
-        const vector = embeddingsOutput.tolist();
-
-        const db = new DatabaseSync(dbFilePath, { allowExtension: true });
-
-        try {
-            // Let's try to directly locate the extension file
-            const packagePath = path.resolve("./node_modules/sqlite-vec-darwin-arm64");
-
-            // If the package exists, check for the extension file
-            if (fs.existsSync(packagePath) && process.platform === "darwin" && process.arch === "arm64") {
-                const extensionFile = path.join(packagePath, "vec0.dylib");
-
-                if (fs.existsSync(extensionFile)) {
-                    // Try loading directly
-                    db.loadExtension(extensionFile);
-                } else {
-                    throw new Error(`Extension file not found at ${extensionFile}`);
-                }
-            } else {
-                // Try the normal way as fallback
-                sqliteVec.load(db);
-            }
-        } catch (loadError) {
-            console.error("Error loading sqlite-vec extension:", loadError);
-
-            // Better error message with debugging info
-            throw new Error(
-                `Failed to load SQLite vector search extension. Error: ${
-                    loadError instanceof Error ? loadError.message : "Unknown error"
-                }. ` +
-                    `Platform: ${process.platform}, Architecture: ${process.arch}. ` +
-                    `Please run: npm install sqlite-vec-darwin-arm64 --no-save`
-            );
-        }
-
-        const rows = db
-            .prepare(
-                `
-        SELECT
-          rowid,
-          distance,
-          content,
-          articlePath
-        FROM blog_articles
-        WHERE embedding MATCH ?
-        ORDER BY distance
-        LIMIT 3
-        `
-            )
-            .all(new Uint8Array(new Float32Array(vector[0] as number[]).buffer));
-
-        db.close();
-        return rows as Article[];
-    } catch (error) {
-        console.error("Error searching database:", error);
-        throw error;
-    }
-}
+import searchDatabase from "./utils/searchDatabase";
+import { pipeline, TextStreamer } from "@huggingface/transformers";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-    // Get the URL from the request
     const { searchParams } = new URL(request.url);
 
-    // Extract the query parameter
     const query = searchParams.get("query");
 
-    // If no query parameter was provided
     if (!query) {
         return NextResponse.json({ error: "Query parameter is required" }, { status: 400 });
     }
 
     try {
-        const results = await searchDatabase(query);
+        const results = await searchDatabase(query, 5);
+
+        const textGenerator = await pipeline("text-generation", "./local_models/Phi-3-mini-4k-instruct/", {
+            local_files_only: true,
+        });
+
+        // Generate AI response based on search results
+        const systemMessage = `You are an AI assistant helping users by generating accurate and well-structured responses based on retrieved knowledge. 
+Below are the top five most relevant content pieces retrieved from an AI-powered search engine using semantic embeddings. 
+Use them as context to generate a clear, concise, and helpful response to the user's query.
+
+Here are the top five most relevant content pieces retrieved from the AI-powered search engine:
+
+${results
+    .map((article, index: number) => {
+        return `${index + 1}. ${article.content}
+        
+        Source: ${"https://www.trpkovsi.com" + article.articlePath}`;
+    })
+    .join("\n")}
+
+Based on this, I will generate a response.
+
+Instructions:
+- Summarise and synthesise the retrieved content to generate a helpful answer.
+- Maintain a technical and informative tone.
+- If the retrieved content lacks sufficient details, provide a general best-practice response while indicating possible gaps.
+- Avoid making up facts beyond the retrieved content.
+- Use Australian English spelling and grammar.
+- Ensure the response is in Markdown format.
+- Cite sources inline where applicable** using Markdown links.
+- Do not add a separate "Sources" section; instead, reference them within the relevant parts of the response.`;
+
+        const messages = [
+            {
+                role: "system",
+                content: systemMessage,
+            },
+            { role: "user", content: `User query: "${query}"` },
+        ];
+
+        const streamer = new TextStreamer(textGenerator.tokenizer, {
+            skip_prompt: true,
+        });
+
+        const aiResponse = await textGenerator(messages, {
+            max_new_tokens: 4096,
+            temperature: 0.2,
+            streamer,
+        });
 
         return NextResponse.json(
             {
                 query,
                 results,
+                aiResponse,
             },
             { status: 200 }
         );
