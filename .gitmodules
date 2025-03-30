@@ -1,0 +1,3 @@
+[submodule "local_models/all-MiniLM-L6-v2"]
+	path = local_models/all-MiniLM-L6-v2
+	url = https://huggingface.co/Xenova/all-MiniLM-L6-v2
