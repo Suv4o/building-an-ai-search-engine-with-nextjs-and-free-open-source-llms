@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import searchDatabase from "./utils/searchDatabase";
 import { pipeline, TextStreamer } from "@huggingface/transformers";
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<Response> {
     const { searchParams } = new URL(request.url);
 
     const query = searchParams.get("query");
@@ -53,24 +53,46 @@ Instructions:
             { role: "user", content: `User query: "${query}"` },
         ];
 
+        // Set up streaming response
+        const encoder = new TextEncoder();
+        const stream = new TransformStream();
+        const writer = stream.writable.getWriter();
+
+        // Create streamer with callback function to stream chunks as they're generated
         const streamer = new TextStreamer(textGenerator.tokenizer, {
             skip_prompt: true,
+            callback_function: async (text) => {
+                // Send the text chunk to the client
+                await writer.write(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`));
+            },
         });
 
-        const aiResponse = await textGenerator(messages, {
+        // Start the generation process without awaiting its completion
+        textGenerator(messages, {
             max_new_tokens: 4096,
             temperature: 0.2,
             streamer,
-        });
+        })
+            .then(async () => {
+                // When generation is complete, close the stream
+                await writer.write(encoder.encode("data: [DONE]\n\n"));
+                await writer.close();
+            })
+            .catch(async (error) => {
+                // Handle errors during generation
+                console.error("Generation error:", error);
+                await writer.write(encoder.encode(`data: ${JSON.stringify({ error: "Generation failed" })}\n\n`));
+                await writer.close();
+            });
 
-        return NextResponse.json(
-            {
-                query,
-                results,
-                aiResponse,
+        // Return a streaming response
+        return new Response(stream.readable, {
+            headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache, no-transform",
+                Connection: "keep-alive",
             },
-            { status: 200 }
-        );
+        });
     } catch (error) {
         console.error("Search failed:", error);
         return NextResponse.json(
