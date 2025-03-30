@@ -24,8 +24,8 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+-   [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+-   [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
@@ -34,3 +34,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Cloning the Repository with Submodules
+
+This repository contains a submodule that points to a Hugging Face model repository. The submodule is located in the local_models directory, specifically in `local_models/all-MiniLM-L6-v2`.
+
+By default, when you clone a repository with submodules, Git does not automatically download the contents of the submodules. You have two options to get all the corresponding files in `local_models/all-MiniLM-L6-v2`:
+
+### Option 1: Clone with the --recurse-submodules flag
+
+```bash
+git clone --recurse-submodules https://your-repository-url.git
+```
+
+### Option 2: If you've already cloned the repository without the submodules, run:
+
+```bash
+git submodule update --init --recursive
+```
+
+This second command will initialize your local configuration file, fetch all the data from the submodule repository, and check out the appropriate commit in your local submodule directory.
+
+The files from the Hugging Face model repository will then be available in your `local_models/all-MiniLM-L6-v2 directory`.
