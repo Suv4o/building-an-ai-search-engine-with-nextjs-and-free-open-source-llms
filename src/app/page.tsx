@@ -8,11 +8,24 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import "highlight.js/styles/github.css";
 
+// Format article path: extract slug, replace hyphens with spaces, and capitalize each word
+const formatArticleSlug = (path: string) => {
+    // Extract slug (everything after potential date pattern)
+    const slug = path.replace(/^\/\d{4}\/\d{2}\/\d{2}\//, "");
+
+    // Replace hyphens with spaces and capitalize each word
+    return slug
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+};
+
 export default function Home() {
     const [query, setQuery] = useState("");
     const [result, setResult] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [rawResults, setRawResults] = useState<Array<{ content: string; articlePath: string }>>([]);
     const resultRef = useRef<HTMLDivElement>(null);
 
     const handleSearch = async () => {
@@ -21,8 +34,21 @@ export default function Home() {
         setLoading(true);
         setResult("");
         setError("");
+        setRawResults([]);
 
         try {
+            // Fetch raw search results immediately
+            fetch(`/api/search-raw?query=${encodeURIComponent(query)}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.results) {
+                        setRawResults(data.results);
+                    }
+                })
+                .catch((err) => {
+                    console.error("Error fetching raw search results:", err);
+                });
+
             const eventSource = new EventSource(`/api/search?query=${encodeURIComponent(query)}`);
 
             eventSource.onmessage = (event) => {
@@ -86,7 +112,7 @@ export default function Home() {
                         <button
                             onClick={handleSearch}
                             disabled={loading || !query.trim()}
-                            className={`px-6 py-4 border-0 text-base font-medium text-white ${
+                            className={`cursor-pointer px-6 py-4 border-0 text-base font-medium text-white ${
                                 loading || !query.trim()
                                     ? "bg-indigo-300 cursor-not-allowed"
                                     : "bg-indigo-600 hover:bg-indigo-700 transition-colors duration-150"
@@ -129,13 +155,39 @@ export default function Home() {
                     )}
                 </div>
 
-                {(result || loading) && (
+                {(result || loading || rawResults.length > 0) && (
                     <div className="mt-8 bg-white shadow-lg rounded-lg overflow-hidden">
                         <div className="px-6 py-5 border-b border-gray-200">
                             <h3 className="text-lg font-medium text-gray-900">
                                 {loading ? "Generating response..." : "Search Results"}
                             </h3>
                         </div>
+
+                        {rawResults.length > 0 && (
+                            <div className="px-6 py-5 bg-indigo-50 border-b border-indigo-100">
+                                <h4 className="text-lg font-semibold text-indigo-800 mb-3">Source Articles:</h4>
+                                <ul className="space-y-3">
+                                    {rawResults.map((result, index) => (
+                                        <li key={index} className="text-base">
+                                            <a
+                                                href={`https://www.trpkovski.com${result.articlePath}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-indigo-600 hover:text-indigo-800 hover:underline flex items-start"
+                                            >
+                                                <span className="inline-block font-medium mr-2">
+                                                    Source {index + 1}:
+                                                </span>
+                                                <span className="flex-1 inline">
+                                                    {formatArticleSlug(result.articlePath)}
+                                                </span>
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
                         <div ref={resultRef} className="px-6 py-5 max-h-[60vh] overflow-y-auto bg-white">
                             {loading && !result && (
                                 <div className="flex items-center justify-center py-10">
@@ -164,7 +216,14 @@ export default function Home() {
                                             ul: (props) => <ul className="list-disc pl-5 mb-4" {...props} />,
                                             ol: (props) => <ol className="list-decimal pl-5 mb-4" {...props} />,
                                             li: (props) => <li className="mb-1" {...props} />,
-                                            a: (props) => <a className="text-blue-600 hover:underline" {...props} />,
+                                            a: (props) => (
+                                                <a
+                                                    className="text-blue-600 hover:underline"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    {...props}
+                                                />
+                                            ),
                                             blockquote: (props) => (
                                                 <blockquote
                                                     className="border-l-4 border-gray-200 pl-4 py-2 mb-4 italic"
@@ -172,6 +231,15 @@ export default function Home() {
                                                 />
                                             ),
                                             code: ({ className, children, ...props }) => {
+                                                const isChildrenArray = Array.isArray(children);
+                                                if (!isChildrenArray) {
+                                                    return (
+                                                        <code className={className} {...props}>
+                                                            {children}
+                                                        </code>
+                                                    );
+                                                }
+
                                                 return (
                                                     <pre className="bg-gray-100 p-4 rounded overflow-x-auto mb-4">
                                                         <code className={className} {...props}>

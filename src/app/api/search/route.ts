@@ -12,7 +12,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
 
     try {
-        const results = await searchDatabase(query, 5);
+        const results = await searchDatabase(query);
 
         const textGenerator = await pipeline("text-generation", "./local_models/Phi-3-mini-4k-instruct/", {
             local_files_only: true,
@@ -20,10 +20,10 @@ export async function GET(request: NextRequest): Promise<Response> {
 
         // Generate AI response based on search results
         const systemMessage = `You are an AI assistant helping users by generating accurate and well-structured responses based on retrieved knowledge. 
-Below are the top five most relevant content pieces retrieved from an AI-powered search engine using semantic embeddings. 
+Below are the top three most relevant content pieces retrieved from an AI-powered search engine using semantic embeddings. 
 Use them as context to generate a clear, concise, and helpful response to the user's query.
 
-Here are the top five most relevant content pieces retrieved from the AI-powered search engine:
+Here are the top three most relevant content pieces retrieved from the AI-powered search engine:
 
 ${results
     .map((article, index: number) => {
@@ -36,13 +36,15 @@ ${results
 Based on this, I will generate a response.
 
 Instructions:
+- Only use information that is explicitly mentioned in the retrieved content above.
 - Summarise and synthesise the retrieved content to generate a helpful answer.
 - Maintain a technical and informative tone.
-- If the retrieved content lacks sufficient details, provide a general best-practice response while indicating possible gaps.
-- Avoid making up facts beyond the retrieved content.
+- Do NOT make up any facts or information that isn't in the retrieved content.
+- If the retrieved content doesn't contain information relevant to the query, respond with "I don't have information about that topic in my knowledge base" - don't try to provide a general response.
+- If the retrieved content only partially addresses the query, only answer what's supported by the content and acknowledge the limitations.
 - Use Australian English spelling and grammar.
 - Ensure the response is in Markdown format.
-- Cite sources inline where applicable** using Markdown links.
+- Cite sources inline where applicable using Markdown links to the provided URLs.
 - Do not add a separate "Sources" section; instead, reference them within the relevant parts of the response.`;
 
         const messages = [
