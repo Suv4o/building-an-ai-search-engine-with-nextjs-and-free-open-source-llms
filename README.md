@@ -59,3 +59,11 @@ git submodule update --init --recursive
 This second command will initialize your local configuration file, fetch all the data from the submodule repositories, and check out the appropriate commits in your local submodule directories.
 
 The files from the Hugging Face model repositories will then be available in your `local_models/all-MiniLM-L6-v2` and `local_models/Phi-3-mini-4k-instruct` directories.
+
+## Troubleshooting
+
+If you use Linux you will need to install the following dependencies:
+
+```bash
+npm install sqlite-vec-linux-x64
+```

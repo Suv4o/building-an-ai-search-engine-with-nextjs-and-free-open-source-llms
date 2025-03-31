@@ -14,8 +14,7 @@
         "next": "15.2.4",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
-        "sqlite-vec": "^0.1.7-alpha.2",
-        "sqlite-vec-linux-x64": "^0.1.7-alpha.2"
+        "sqlite-vec-darwin-arm64": "^0.1.7-alpha.2"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3",
