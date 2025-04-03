@@ -33,7 +33,7 @@ ${results
     })
     .join("\n")}
 
-Based on this, I will generate a response.
+Based on the user query, generate a response using the retrieved content.
 
 Instructions:
 - Only use information that is explicitly mentioned in the retrieved content above.
